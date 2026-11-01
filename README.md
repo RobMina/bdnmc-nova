@@ -59,3 +59,6 @@ existing NOvA chain's TextFileGen files for the same card.
 ```bash
 python -m pytest
 ```
+
+CI (`.github/workflows/ci.yml`) runs them on every push and pull request and weekly, against the head of the
+port's `gpu-port` branch.

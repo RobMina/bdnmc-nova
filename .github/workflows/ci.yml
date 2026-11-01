@@ -1,0 +1,35 @@
+# Tests on CPU against the JAX port at the head of RobMina/BdNMC gpu-port (weekly as well, to catch changes there),
+# and a syntax check of the job and container scripts. The NOvASoft stage needs the experiment's image and CVMFS
+# and is not run here.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Install
+        run: python -m pip install -e '.[test]'
+      - name: Tests
+        run: python -m pytest -q
+      - name: Shell scripts parse
+        run: for f in jobs/*.sh containers/*.sh; do bash -n "$f" && echo "ok $f"; done
