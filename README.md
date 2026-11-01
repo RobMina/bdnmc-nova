@@ -25,7 +25,7 @@ NOvASoft runs in an SL7 image. The JAX port needs glibc >= 2.27, which SL7 (2.17
 
 | Mode | Generation | Simulation | Endpoints |
 |---|---|---|---|
-| **two-stage job** (`jobs/two_stage.sh`) | JAX port in the BdNMC image (`RobMina/BdNMC` `gpu/containers/bdnmc-jax.def`), GPU or CPU | NOvASoft in its SL7 image, reading the TextFileGen file | any with Apptainer and CVMFS: FNAL grid, UVA Slurm, EAF |
+| **two-stage job** (`jobs/two_stage.sh`) | JAX port in the BdNMC image (`RobMina/BdNMC` `gpu/containers/bdnmc-jax.def`), GPU or CPU | NOvASoft in its SL7 image, reading the TextFileGen file | any with Apptainer and CVMFS: the FNAL grid, a Slurm cluster, EAF |
 | **single container, in process** | stock libBdNMC (branch `shared_library`, C API `BdNMC_capi.h`) built with NOvASoft's compiler (`containers/build_libbdnmc_sl7.sh`), called by a NOvASoft generator module | the same art job | CPU endpoints (FNAL grid) |
 
 The two-stage mode uses the GPU port's speed; the in-process mode needs no intermediate file and no second image.
@@ -51,7 +51,7 @@ The configuration file is described in `bdnmc_nova/config.py`. Precision: float3
 
 First version (2026-10-31): frame, TextFileGen writer, generation CLI and tests (laptop CPU); the job and container
 recipes are written but not yet run end to end. Next: submission through the experiment-neutral endpoint package
-(`hep-endpoints`), a run of the two-stage job on a grid worker and on a UVA GPU node, and a comparison with the
+(`hep-endpoints`), a run of the two-stage job on a grid worker and on a GPU node of a Slurm cluster, and a comparison with the
 existing NOvA chain's TextFileGen files for the same card.
 
 ## Tests
