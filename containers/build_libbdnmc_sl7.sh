@@ -16,6 +16,7 @@ if [[ ! -d $SRC/.git ]]; then
 fi
 git -C "$SRC" fetch origin
 git -C "$SRC" checkout "$REF"
+git -C "$SRC" submodule update --init  # most stock sources are in BdNMC_LANL (lanl/BdNMC_LANL)
 echo "BdNMC $(git -C "$SRC" rev-parse --short HEAD)"
 cd "$SRC/build"
 make clean >/dev/null 2>&1 || true
