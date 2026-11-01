@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bdnmc-nova"
+version = "0.0.1"
+description = "BdNMC light-dark-matter event generation for the NOvA Near Detector: detector frame, TextFileGen input, container and job recipes"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+# bdnmc-jax: the JAX port in RobMina/BdNMC (branch gpu-port, subdirectory gpu)
+dependencies = ["numpy", "bdnmc-jax @ git+https://github.com/RobMina/BdNMC.git@gpu-port#subdirectory=gpu"]
+
+[project.optional-dependencies]
+test = ["pytest", "h5py"]
+
+[tool.setuptools.packages.find]
+include = ["bdnmc_nova*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
