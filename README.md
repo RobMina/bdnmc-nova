@@ -12,7 +12,10 @@ experiment-independent in its own repository; this package adds what NOvA needs 
 - `bdnmc_nova.generate`: stage 1 of a job: card (+ overrides) -> JAX port -> TextFileGen file (+ HDF5, summary);
 - `containers/`: how to combine BdNMC with NOvASoft in a job or a container; `build_libbdnmc_sl7.sh` builds stock
   libBdNMC with NOvASoft's compiler for the in-process mode;
-- `jobs/two_stage.sh`: generation and simulation in one job.
+- `jobs/two_stage.sh` (packaged as `bdnmc_nova/data/two_stage.sh`): generation and simulation in one job;
+- `bdnmc_nova.jobspec`: that job as a self-contained script (card and frame configuration embedded), submitted to a
+  compute endpoint through the experiment-neutral [hep-endpoints](https://github.com/RobMina/hep-endpoints) package
+  (Slurm over SSH, Fermilab EAF, the FNAL grid through jobsub).
 
 **Not in this repository** (NOvA collaboration material, kept in the experiment's private configuration): the
 detector frame's values (the ND's position and orientation in the beam frame), the NuMI meson lists from g4numi, the
@@ -44,14 +47,34 @@ BDNMC_NOVA_CONFIG=/path/to/private/nova_frame.json python -m bdnmc_nova.generate
 GEN_IMAGE=bdnmc-jax.sif NOVA_IMAGE=<sl7 image> NOVA_SETUP='<NOvASoft setup>' NOVA_FCL=<textfilegen sim fcl> CARD=card.dat BDNMC_NOVA_CONFIG=/path/to/private/nova_frame.json GPU=1 bash jobs/two_stage.sh
 ```
 
+Through hep-endpoints (site settings in its `HEPEP_*` variables; every path is as the job sees it at the site):
+
+```bash
+python -m bdnmc_nova.jobspec submit card.dat --handle <name> --endpoint slurm_ssh --config /path/to/private/nova_frame.json --src <bdnmc-nova checkout> --gen-image <bdnmc-jax.sif> --nova-image <sl7 image> --nova-setup '<NOvASoft setup>' --nova-fcl <textfilegen sim fcl> --gpus 1
+```
+
+```bash
+python -m bdnmc_nova.jobspec status <name> --endpoint slurm_ssh
+```
+
+```bash
+python -m bdnmc_nova.jobspec fetch <name> --endpoint slurm_ssh --dest results
+```
+
+The job keeps its inputs in the endpoint's job directory and writes to its output directory (`$BDNMC_OUT`), which
+`fetch` copies to `results/<name>/`. Resubmitting the same job under the same handle returns the same record; a
+changed one is refused. `jobspec script ... --out job.sh` writes the job script instead (mode 0700: it holds the
+private frame configuration).
+
 The configuration file is described in `bdnmc_nova/config.py`. Precision: float32 by default (the port's default),
 `PRECISION=float64` in the job or `BDNMC_JAX_PRECISION=float64` for float64.
 
 ## Status
 
 First version (2026-10-31): frame, TextFileGen writer, generation CLI and tests (laptop CPU); the job and container
-recipes are written but not yet run end to end. Next: submission through the experiment-neutral endpoint package
-(`hep-endpoints`), a run of the two-stage job on a grid worker and on a GPU node of a Slurm cluster, and a comparison with the
+recipes are written but not yet run end to end; submission through hep-endpoints is wired and tested offline
+(rendered Slurm job file, a local stand-in endpoint). Next: a run of the two-stage job on a grid worker and on a GPU
+node of a Slurm cluster, and a comparison with the
 existing NOvA chain's TextFileGen files for the same card.
 
 ## Tests
