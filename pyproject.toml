@@ -9,9 +9,10 @@ description = "BdNMC light-dark-matter event generation for the NOvA Near Detect
 requires-python = ">=3.11"
 license = {text = "MIT"}
 # bdnmc-jax: the JAX port in RobMina/BdNMC (branch gpu-port, subdirectory gpu)
-# hep-endpoints: job submission (RobMina/hep-endpoints, standard-library only), pinned to a commit
+# hep-endpoints: job submission (RobMina/hep-endpoints, standard-library only), pinned to a commit (branch
+# slurm-dependency: Slurm job dependencies)
 dependencies = ["numpy", "bdnmc-jax @ git+https://github.com/RobMina/BdNMC.git@gpu-port#subdirectory=gpu",
-                "hep-endpoints @ git+https://github.com/RobMina/hep-endpoints.git@5327d2d9247f4a1879461cec6a6d4046d5b88134"]
+                "hep-endpoints @ git+https://github.com/RobMina/hep-endpoints.git@31de7e6dd436fcb9cd901765f4330d155c9405b7"]
 
 [project.optional-dependencies]
 test = ["pytest", "h5py"]
@@ -20,7 +21,7 @@ test = ["pytest", "h5py"]
 include = ["bdnmc_nova*"]
 
 [tool.setuptools.package-data]
-bdnmc_nova = ["data/*.sh"]
+bdnmc_nova = ["data/*.sh", "data/*.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
