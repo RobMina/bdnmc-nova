@@ -1,0 +1,6 @@
+bdnmc-nova
+Copyright (c) 2026 the bdnmc-nova contributors. Licensed under the MIT License (LICENSE).
+
+Third-party material:
+- tests/data/generic_mb_pi0_m005.dat is a BdNMC parameter card from RobMina/BdNMC (MIT License,
+  Copyright (c) 2015-2021 Brian Batell, Patrick deNiverville).
