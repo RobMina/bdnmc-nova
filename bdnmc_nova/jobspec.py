@@ -7,7 +7,7 @@ EAF, FNAL grid through jobsub); the site settings are its `HEPEP_*` variables or
   the job needs only the two images, a bdnmc-nova checkout and the simulation FCL at the site; it writes to the
   endpoint's output directory (`$BDNMC_OUT`) and keeps its inputs in the job directory (`$BDNMC_JOB_DIR`). The
   stages can run as separate jobs at separate sites (`stages`): generation where the GPU is, the simulation where
-  NOvASoft is, with the first job's TextFileGen file (`events_text`), the simulation FCL (`nova_fcl_text`) and the
+  NOvASoft is, with the first job's HEPEVT file (`events_text`), the simulation FCL (`nova_fcl_text`) and the
   primaries dump (data/dump_primaries.py) embedded, so a grid worker needs nothing but CVMFS;
 - `JobSpec.resources()`: cores, memory, GPUs, wall time (the fields of hependpoints.Resources);
 - `endpoint(name, preamble="", **kw)`, `submit(spec, endpoint)`: an endpoint with bdnmc-nova's job environment
@@ -44,7 +44,7 @@ class JobSpec:
     gen_image: str  # the BdNMC JAX image at the site (stage gen)
     nova_image: str  # NOvA's SL7 image at the site; "": NOvASoft runs in the job's own environment (stage sim)
     nova_setup: str  # the NOvASoft setup command (stage sim)
-    nova_fcl: str  # the TextFileGen simulation FCL at the site (stage sim; or nova_fcl_text)
+    nova_fcl: str  # the simulation FCL at the site (stage sim; or nova_fcl_text)
     trials: int = 1 << 24
     channel: str = ""
     nevents: int = -1
@@ -56,7 +56,7 @@ class JobSpec:
     mem_gb: int = 8
     minutes: int = 120
     stages: str = "gen,sim"  # "gen,sim" (one job), "gen" or "sim" (two jobs, possibly at two sites)
-    events_text: str = ""  # stage sim alone: the TextFileGen input (a stage gen job's events.txt), embedded
+    events_text: str = ""  # stage sim alone: the HEPEVT input (a stage gen job's events.txt), embedded
     events: str = ""  # stage sim alone: or that file's path at the site (e.g. a stage gen job's output, same disk)
     nova_fcl_text: str = ""  # the simulation FCL, embedded (in place of nova_fcl, e.g. for a grid worker)
     dump: bool = True  # stage sim: dump the art file's primaries to primaries.csv (data/dump_primaries.py)
@@ -202,8 +202,8 @@ def main(argv=None):
         for name in ("src", "gen-image", "nova-image", "nova-setup", "nova-fcl"):
             p.add_argument(f"--{name}", default="", help="at the site")
         p.add_argument("--nova-fcl-file", type=Path, help="a local simulation FCL to embed (in place of --nova-fcl)")
-        p.add_argument("--events", type=Path, help="stage sim alone: a TextFileGen file to embed (events.txt)")
-        p.add_argument("--events-at", default="", help="stage sim alone: the TextFileGen file's path at the site")
+        p.add_argument("--events", type=Path, help="stage sim alone: a HEPEVT file to embed (events.txt)")
+        p.add_argument("--events-at", default="", help="stage sim alone: the HEPEVT file's path at the site")
         p.add_argument("--max-events", type=int, default=-1, help="embed only the first N events of --events")
         p.add_argument("--no-dump", action="store_true", help="do not dump the art file's primaries")
         p.add_argument("--cvmfsexec", default="", help="a prepared cvmfsexec tree at the site (no /cvmfs there)")
@@ -244,7 +244,7 @@ def main(argv=None):
         elif bool(a.events) == bool(a.events_at):
             ap.error("--stages sim: pass --events (a local file, embedded) or --events-at (a path at the site)")
         if a.events:
-            from .textfilegen import head
+            from .hepevt import head
             events_text = head(a.events.read_text(), a.max_events)
         spec = JobSpec(a.handle, card_text, config_text, a.src, a.gen_image, a.nova_image, a.nova_setup, a.nova_fcl,
                        trials=a.trials, channel=a.channel, nevents=a.nevents, precision=a.precision, bind=a.bind,

@@ -4,7 +4,7 @@ from pathlib import Path
 import py_compile
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("check_textfilegen", ROOT / "jobs" / "check_textfilegen.py")
+spec = importlib.util.spec_from_file_location("check_hepevt", ROOT / "jobs" / "check_hepevt.py")
 check = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(check)
 
@@ -16,7 +16,7 @@ def write(tmp_path, events=EVENTS, scale=1.0, drop_last=False):
     ev = tmp_path / "events.txt"
     ev.write_text(events)
     rows = []
-    for entry, (_, parts) in enumerate(check.read_textfilegen(ev)):
+    for entry, (_, parts) in enumerate(check.read_hepevt(ev)):
         for i, p in enumerate(parts):
             f = [float(x) for x in p[6:]]
             rows.append([entry, 1000001, 1, entry + 1, 0, i, p[0], p[1], p[2], f[5], f[6], f[7] * scale, f[8],

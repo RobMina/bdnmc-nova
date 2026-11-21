@@ -1,4 +1,4 @@
-"""Stage 1 end to end on a generic card (CPU, a few 2^16-trial blocks): TextFileGen lines in the conventions of the
+"""Stage 1 end to end on a generic card (CPU, a few 2^16-trial blocks): HEPEVT lines in the conventions of the
 existing NOvA chain, and the frame applied."""
 import json
 from pathlib import Path
@@ -19,7 +19,7 @@ def test_set_keys():
         generate.set_keys(text, {"c": "1"})
 
 
-def test_generate_writes_textfilegen(tmp_path):
+def test_generate_writes_hepevt(tmp_path):
     cfg = tmp_path / "cfg.json"
     cfg.write_text(json.dumps({"frame": {"origin_m": [0.0, 0.0, 490.0], "pitch_rad": 0.0, "yaw_rad": 0.0},
                                "card_overrides": {"seed": "7"}}))
