@@ -1,4 +1,4 @@
-"""BdNMC events as input to NOvASoft's TextFileGen: HEPEVT-style text in the detector frame, cm and ns, with the
+"""BdNMC events as HEPEVT-style text for the detector simulation: the detector frame, cm and ns, with the
 conventions of the existing NOvA chain: the recoil electron tracked (status 1, PDG 11), the recoil DM not tracked
 (status 2, PDG 18), mother/daughter fields `0 -1 -1 -1`."""
 
@@ -14,7 +14,7 @@ def write(res, path, frame, channel=None):
 
 
 def head(text, n):
-    """The first `n` events of TextFileGen text (all of them for n < 0): per event a line `<event> <particles>` and
+    """The first `n` events of HEPEVT text (all of them for n < 0): per event a line `<event> <particles>` and
     that many particle lines; `#` and blank lines before an event are kept."""
     if n < 0:
         return text

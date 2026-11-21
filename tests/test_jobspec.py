@@ -13,7 +13,7 @@ CONFIG = (ROOT / "configs" / "example.json").read_text()
 def spec(**kw):
     args = dict(handle="mb-pi0-m005", card_text="model Dark_Photon\nseed 3\n", config_text=CONFIG,
                 src="/site/bdnmc-nova", gen_image="/site/bdnmc-jax.sif", nova_image="/site/sl7.sif",
-                nova_setup="source /site/setup_nova.sh", nova_fcl="textfilegen_sim.fcl")
+                nova_setup="source /site/setup_nova.sh", nova_fcl="detsim.fcl")
     return jobspec.JobSpec(**(args | kw))
 
 
@@ -45,11 +45,11 @@ def test_spec_refuses_bad_inputs():
 def test_slurm_job_file_has_the_nova_environment(tmp_path):
     from hependpoints import Resources
     s = spec(gpus=1, gpu_type="a100")
-    ep = jobspec.endpoint("slurm_ssh", host="login.example", account="acct", workdir="/scratch/jobs",
+    ep = jobspec.endpoint("slurm_ssh", host="login.example", account="acct", workdir="/site/jobs",
                           state_dir=tmp_path / "state")
     body = ep.body(s.handle, s.script(), Resources(**s.resources()))
     assert "#SBATCH -J bdnmcnova_mb-pi0-m005" in body and "#SBATCH --gres=gpu:a100:1" in body
-    assert "export BDNMC_JOB_DIR=/scratch/jobs/mb-pi0-m005 BDNMC_OUT=/scratch/jobs/mb-pi0-m005/out" in body
+    assert "export BDNMC_JOB_DIR=/site/jobs/mb-pi0-m005 BDNMC_OUT=/site/jobs/mb-pi0-m005/out" in body
     f = tmp_path / "job.sh"
     f.write_text(body)
     subprocess.run(["bash", "-n", str(f)], check=True)
@@ -61,7 +61,7 @@ def test_submit_runs_both_stages_through_a_registered_endpoint(tmp_path):
     import hependpoints
     bindir, log = tmp_path / "bin", tmp_path / "apptainer.log"
     bindir.mkdir()
-    # the generation stub writes a two-event TextFileGen file where --out points
+    # the generation stub writes a two-event HEPEVT file where --out points
     (bindir / "apptainer").write_text(f"#!/bin/sh\necho \"$*\" >> {log}\n" + STUB_OUT)
     (bindir / "apptainer").chmod(0o755)
     local_endpoint(tmp_path, bindir)
@@ -74,7 +74,7 @@ def test_submit_runs_both_stages_through_a_registered_endpoint(tmp_path):
     assert gen.startswith("exec --nv -B ") and "/site/bdnmc-jax.sif python -m bdnmc_nova.generate" in gen
     assert f"--out {jd}/out/events.txt --config {jd}/in/frame.json" in gen and "PYTHONPATH=/site/bdnmc-nova" in gen
     assert sim.startswith("exec --cleanenv -B /cvmfs -B ") and "/site/sl7.sif bash -lc" in sim
-    assert "nova -c 'textfilegen_sim.fcl' -n 2 -o sim.root" in sim
+    assert "nova -c 'detsim.fcl' -n 2 -o sim.root" in sim
     assert f"python '{jd}/in/dump_primaries.py' sim.root --out primaries.csv" in sim
     assert (jd / "out" / "sim.log").exists()
 
@@ -114,12 +114,12 @@ def test_simulation_alone_embeds_events_fcl_and_dump(tmp_path):
         (bindir / tool).chmod(0o755)
     local_endpoint(tmp_path, bindir)
     s = jobspec.JobSpec("sim-only", "", "", "", "", "", "export SETUP_DONE=1", "", stages="sim", events_text=EVENTS,
-                        nova_fcl_text='#include "prodtextgen.fcl"\n')
+                        nova_fcl_text='#include "sim_base.fcl"\n')
     assert "export GEN_IMAGE" not in s.script() and "BDNMC_CARD_EOF" not in s.script()
     jobspec.submit(s, "local-test", preamble="export SITE_READY=1")
     jd = SEEN["jd"]
     assert (jd / "out" / "events.txt").read_text() == EVENTS
-    assert (jd / "in" / "sim.fcl").read_text() == '#include "prodtextgen.fcl"\n'
+    assert (jd / "in" / "sim.fcl").read_text() == '#include "sim_base.fcl"\n'
     nova, python = log.read_text().splitlines()
     assert nova == f"nova -c {jd}/in/sim.fcl -n 2 -o sim.root"
     assert python == f"python {jd}/in/dump_primaries.py sim.root --out primaries.csv"
@@ -140,7 +140,7 @@ def test_stage_requirements():
 
 
 def test_head_keeps_the_first_events():
-    from bdnmc_nova.textfilegen import head
+    from bdnmc_nova.hepevt import head
     assert head(EVENTS, -1) == EVENTS
     assert head(EVENTS, 1) == "".join(EVENTS.splitlines(keepends=True)[:4])
     assert head(EVENTS, 5) == EVENTS
@@ -152,7 +152,7 @@ def test_preamble_reaches_the_slurm_job_file(tmp_path):
     from hependpoints import Resources
     s = spec()
     ep = jobspec.endpoint("slurm_ssh", preamble="module load apptainer", host="login.example", account="acct",
-                          workdir="/scratch/jobs", state_dir=tmp_path / "state")
+                          workdir="/site/jobs", state_dir=tmp_path / "state")
     body = ep.body(s.handle, s.script(), Resources(**s.resources()))
     assert body.index("module load apptainer\n") < body.index("# bdnmc-nova job mb-pi0-m005")
 
@@ -201,16 +201,16 @@ def test_generation_on_gpu_then_simulation_on_cpu_after_it(tmp_path):
         return subprocess.CompletedProcess(cmd, 0, f"{jid}\n".encode(), b"")
 
     ep = jobspec.endpoint("slurm_ssh", preamble="module load apptainer", host="login.example", account="acct",
-                          workdir="/scratch/jobs", cpu_partition="standard", state_dir=tmp_path / "state",
+                          workdir="/site/jobs", cpu_partition="cpu", state_dir=tmp_path / "state",
                           runner=runner)
     gen = jobspec.submit(spec(handle="gen", stages="gen", gpus=1, gpu_type="v100"), ep)
-    sim = spec(handle="sim", stages="sim", events="/scratch/jobs/gen/out/events.txt", cores=1, mem_gb=16,
+    sim = spec(handle="sim", stages="sim", events="/site/jobs/gen/out/events.txt", cores=1, mem_gb=16,
                nova_image="/cvmfs/images/sl7", cvmfsexec="/site/cvmfsexec")
     rec = jobspec.submit(sim, ep, after=["gen"])
     body = scripts[rec.job_id]
-    assert f"#SBATCH --dependency=afterok:{gen.job_id}\n" in body and "#SBATCH -p standard" in body
+    assert f"#SBATCH --dependency=afterok:{gen.job_id}\n" in body and "#SBATCH -p cpu" in body
     assert "--gres" not in body and "#SBATCH --gres=gpu:v100:1" in scripts[gen.job_id]
-    assert "export EVENTS=/scratch/jobs/gen/out/events.txt" in body and "BDNMC_EVENTS_EOF" not in body
+    assert "export EVENTS=/site/jobs/gen/out/events.txt" in body and "BDNMC_EVENTS_EOF" not in body
     assert "export CVMFSEXEC=/site/cvmfsexec" in body and "export STAGES=sim" in body
     with pytest.raises(ValueError):  # embedded and at-the-site events together
         spec(stages="sim", events="/x/events.txt", events_text=EVENTS)

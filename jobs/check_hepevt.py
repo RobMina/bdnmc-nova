@@ -1,11 +1,11 @@
-"""Check a NOvASoft art file's generator primaries against the TextFileGen input it was made from.
+"""Check a NOvASoft art file's generator primaries against the HEPEVT input it was made from.
 
 The primaries come from data/dump_primaries.py (run in the NOvASoft environment at the end of the simulation stage,
-`primaries.csv`); this script needs only numpy. Art event i must be TextFileGen event i, with the same particles in
+`primaries.csv`); this script needs only numpy. Art event i must be HEPEVT event i, with the same particles in
 the same order: status, PDG and first mother exactly, vertex (cm), time (ns), momentum, energy and mass (GeV) to
 `--rtol` relative to the value's scale. With `--log` (the art job's log) it also checks the TrigReport counts.
 
-Usage: python jobs/check_textfilegen.py events.txt primaries.csv [--log sim.log] [--rtol 1e-9]
+Usage: python jobs/check_hepevt.py events.txt primaries.csv [--log sim.log] [--rtol 1e-9]
 Exit status 0 when everything agrees, 1 otherwise.
 """
 import argparse
@@ -19,8 +19,8 @@ FLOATS = ("x", "y", "z", "t", "px", "py", "pz", "e", "mass")
 TEXT_COLUMNS = {"px": 6, "py": 7, "pz": 8, "e": 9, "mass": 10, "x": 11, "y": 12, "z": 13, "t": 14}
 
 
-def read_textfilegen(path):
-    """[(event header index, [particle fields])] of a TextFileGen file (`#` and blank lines skipped)."""
+def read_hepevt(path):
+    """[(event header index, [particle fields])] of a HEPEVT file (`#` and blank lines skipped)."""
     events, lines = [], [ln.split() for ln in open(path) if ln.strip() and not ln.lstrip().startswith("#")]
     i = 0
     while i < len(lines):
@@ -41,7 +41,7 @@ def main(argv=None):
     ap.add_argument("--rtol", type=float, default=1e-9)
     a = ap.parse_args(argv)
 
-    ref = read_textfilegen(a.events)
+    ref = read_hepevt(a.events)
     rows = list(csv.DictReader(open(a.primaries)))
     by_entry = {}
     for r in rows:
@@ -49,13 +49,13 @@ def main(argv=None):
     n_art = max(by_entry) + 1 if by_entry else 0
     bad = []
     if n_art > len(ref):
-        bad.append(f"{n_art} art events with primaries but only {len(ref)} TextFileGen events")
+        bad.append(f"{n_art} art events with primaries but only {len(ref)} HEPEVT events")
     worst = {k: 0.0 for k in FLOATS}
     n_particles, empty = 0, [i for i in range(n_art) if i not in by_entry]
     for i in range(min(n_art, len(ref))):
         got, (_, want) = by_entry.get(i, []), ref[i]
         if len(got) != len(want):
-            bad.append(f"event {i}: {len(got)} primaries in the art file, {len(want)} in the TextFileGen file")
+            bad.append(f"event {i}: {len(got)} primaries in the art file, {len(want)} in the HEPEVT file")
             continue
         for g, w in zip(got, want):
             n_particles += 1
@@ -69,7 +69,7 @@ def main(argv=None):
         bad.append(f"{len(empty)} art events without primaries (first {empty[:5]})")
 
     pdgs = sorted({int(r["pdg"]) for r in rows})
-    print(f"{n_art} art events, {n_particles} primaries compared (PDG {pdgs}) against {len(ref)} TextFileGen events")
+    print(f"{n_art} art events, {n_particles} primaries compared (PDG {pdgs}) against {len(ref)} HEPEVT events")
     print("max relative difference (|art - text| / max(|text|, 1)): "
           + ", ".join(f"{k} {worst[k]:.2g}" for k in FLOATS))
     if a.log:

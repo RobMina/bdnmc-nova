@@ -1,6 +1,7 @@
 #!/bin/bash
 # One job, two stages: (1) generate BdNMC events with the JAX port in its own image (needs glibc >= 2.27, so not
-# NOvA's SL7 image) and write TextFileGen input; (2) run NOvASoft's simulation on that file in NOvA's SL7 image.
+# NOvA's SL7 image) and write HEPEVT input; (2) run the detector simulation (stock collaboration software in its own
+# SL7 image) on that file.
 # The job runs where both images are reachable (a grid worker with CVMFS, a Slurm node); a compute-endpoint
 # adapter (hep-endpoints) submits it through bdnmc_nova.jobspec, which sets the inputs below and embeds the card and
 # the frame configuration. The stages can also run as two jobs at two sites (STAGES=gen, then STAGES=sim with the
@@ -13,11 +14,11 @@
 #                TRIALS, CHANNEL, GPU (1: pass --nv), PRECISION (float32 | float64), BIND (extra -B paths)
 #                BDNMC_NOVA_SRC  a bdnmc-nova checkout as the job sees it (default: the one holding this script)
 #   stage sim:   NOVA_SETUP  the NOvASoft setup command (from the experiment's own documentation)
-#                NOVA_FCL    the TextFileGen simulation FCL (experiment configuration, not in this repository); its
-#                            TextFileGen module reads events.txt from the working directory, which is $OUT
+#                NOVA_FCL    the simulation FCL (experiment configuration, not in this repository); its input
+#                            module reads events.txt from the working directory, which is $OUT
 #                NOVA_IMAGE  NOvA's SL7 image (e.g. the Fermilab SL7 image on /cvmfs/singularity.opensciencegrid.org);
 #                            empty: run NOvASoft in the job's own environment (a grid job already in that image)
-#                EVENTS      (sim only) the TextFileGen input to simulate, copied to $OUT/events.txt
+#                EVENTS      (sim only) the HEPEVT input to simulate, copied to $OUT/events.txt
 #                NEVENTS     events to simulate (default: all events of events.txt)
 #                DUMP_PRIMARIES  a dump_primaries.py to run on the art file in the NOvASoft environment (primaries.csv)
 #                CVMFSEXEC   a prepared cvmfsexec tree (github.com/cvmfs/cvmfsexec, `makedist` for the host's OS) on a
@@ -26,7 +27,7 @@
 #                            simulation in NOVA_IMAGE (which may itself be on CVMFS) with `apptainer --userns`, and
 #                            deletes the copy and its cache. CVMFS_SERVER_URL (default: the FNAL and BNL Stratum-1s),
 #                            CVMFS_HTTP_PROXY (default DIRECT).
-# Outputs in $OUT (default $BDNMC_OUT, the hep-endpoints output directory, else ./out): events.txt (TextFileGen
+# Outputs in $OUT (default $BDNMC_OUT, the hep-endpoints output directory, else ./out): events.txt (HEPEVT
 # input), summary.json, and the simulation's art file (sim.root), its log (sim.log) and primaries.csv.
 set -eo pipefail
 STAGES=${STAGES:-gen,sim}

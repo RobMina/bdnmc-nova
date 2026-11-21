@@ -33,3 +33,11 @@ jobs:
         run: python -m pytest -q
       - name: Shell scripts parse
         run: for f in jobs/*.sh containers/*.sh; do bash -n "$f" && echo "ok $f"; done
+      - name: No site paths or private pointers
+        run: |
+          # Generic patterns only: absolute site roots, home directories, private wiki
+          # checkouts and placeholders. Never list real hosts, accounts or paths here.
+          if git grep -nE '(^|[^$A-Za-z_{])/(project|scratch|exp|pnfs|nashome|home|Users)/[A-Za-z0-9_.-]+/|ai-config|private-[a-z-]*wiki' \
+              -- . ':!.github/workflows/ci.yml'; then
+            echo "site path or private pointer found" >&2; exit 1
+          fi

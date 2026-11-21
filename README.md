@@ -7,10 +7,11 @@ experiment-independent in its own repository; this package adds what NOvA needs 
 **In this repository** (public):
 - `bdnmc_nova.frame`: BdNMC's beam frame to the detector frame (detector = R^T (x - X0), cm), with per-channel
   production offsets;
-- `bdnmc_nova.textfilegen`: BdNMC events as NOvASoft TextFileGen input (HEPEVT-style; electron tracked, recoil DM
-  PDG 18 not tracked), through the fork's `bdnmc_jax.output.write_hepevt`;
-- `bdnmc_nova.generate`: stage 1 of a job: card (+ overrides) -> JAX port -> TextFileGen file (+ HDF5, summary);
-- `containers/`: how to combine BdNMC with NOvASoft in a job or a container; `build_libbdnmc_sl7.sh` builds stock
+- `bdnmc_nova.hepevt`: BdNMC events as HEPEVT-style text for the detector simulation (electron tracked, recoil DM
+  PDG 18 not tracked), through the fork's `bdnmc_jax.output.write_hepevt` (the module's earlier import path remains
+  as a deprecated alias for now);
+- `bdnmc_nova.generate`: stage 1 of a job: card (+ overrides) -> JAX port -> HEPEVT file (+ HDF5, summary);
+- `containers/`: how to combine BdNMC with the detector simulation in a job or a container; `build_libbdnmc_sl7.sh` builds stock
   libBdNMC with NOvASoft's compiler for the in-process mode;
 - `jobs/two_stage.sh` (packaged as `bdnmc_nova/data/two_stage.sh`): generation and simulation in one job;
 - `bdnmc_nova.jobspec`: that job as a self-contained script (card and frame configuration embedded), submitted to a
@@ -24,11 +25,12 @@ FCLs. `configs/example.json` is an identity frame for tests, not NOvA's.
 
 ## Two ways to run
 
-NOvASoft runs in an SL7 image. The JAX port needs glibc >= 2.27, which SL7 (2.17) does not have, so:
+The detector simulation is stock collaboration software in its own image (SL7); this package writes its input and
+orchestrates the job, and never reimplements it. The JAX port needs glibc >= 2.27, which SL7 (2.17) does not have, so:
 
 | Mode | Generation | Simulation | Endpoints |
 |---|---|---|---|
-| **two-stage job** (`jobs/two_stage.sh`) | JAX port in the BdNMC image (`RobMina/BdNMC` `gpu/containers/bdnmc-jax.def`), GPU or CPU | NOvASoft in its SL7 image, reading the TextFileGen file | any with Apptainer and CVMFS: the FNAL grid, a Slurm cluster, EAF |
+| **two-stage job** (`jobs/two_stage.sh`) | JAX port in the BdNMC image (`RobMina/BdNMC` `gpu/containers/bdnmc-jax.def`), GPU or CPU | the stock simulation in its SL7 image, reading the HEPEVT file | any with Apptainer and CVMFS: the FNAL grid, a Slurm cluster, EAF |
 | **single container, in process** | stock libBdNMC (branch `shared_library`, C API `BdNMC_capi.h`) built with NOvASoft's compiler (`containers/build_libbdnmc_sl7.sh`), called by a NOvASoft generator module | the same art job | CPU endpoints (FNAL grid) |
 
 The two-stage mode uses the GPU port's speed; the in-process mode needs no intermediate file and no second image.
@@ -51,13 +53,13 @@ BDNMC_NOVA_CONFIG=/path/to/private/nova_frame.json python -m bdnmc_nova.generate
 ```
 
 ```bash
-GEN_IMAGE=bdnmc-jax.sif NOVA_IMAGE=<sl7 image> NOVA_SETUP='<NOvASoft setup>' NOVA_FCL=<textfilegen sim fcl> CARD=card.dat BDNMC_NOVA_CONFIG=/path/to/private/nova_frame.json GPU=1 bash jobs/two_stage.sh
+GEN_IMAGE=bdnmc-jax.sif NOVA_IMAGE=<sl7 image> NOVA_SETUP='<NOvASoft setup>' NOVA_FCL=<simulation fcl> CARD=card.dat BDNMC_NOVA_CONFIG=/path/to/private/nova_frame.json GPU=1 bash jobs/two_stage.sh
 ```
 
 Through hep-endpoints (site settings in its `HEPEP_*` variables; every path is as the job sees it at the site):
 
 ```bash
-python -m bdnmc_nova.jobspec submit card.dat --handle <name> --endpoint slurm_ssh --config /path/to/private/nova_frame.json --src <bdnmc-nova checkout> --gen-image <bdnmc-jax.sif> --nova-image <sl7 image> --nova-setup '<NOvASoft setup>' --nova-fcl <textfilegen sim fcl> --gpus 1
+python -m bdnmc_nova.jobspec submit card.dat --handle <name> --endpoint slurm_ssh --config /path/to/private/nova_frame.json --src <bdnmc-nova checkout> --gen-image <bdnmc-jax.sif> --nova-image <sl7 image> --nova-setup '<NOvASoft setup>' --nova-fcl <simulation fcl> --gpus 1
 ```
 
 ```bash
@@ -101,7 +103,7 @@ python -m bdnmc_nova.jobspec submit --stages sim --handle <sim> --endpoint jobsu
   KEY=VALUE`: any keyword argument of the hep-endpoints endpoint (for `jobsub`: `worker_setup`, the setup that makes
   `ifdh` available on the worker before the job's first copy; `copy_command` when the submit host reads dCache
   differently from the worker). Pass the same settings to `status`, `fetch` and `cancel`.
-- The FCL's TextFileGen module reads `events.txt` from the working directory (the job's output directory). Every
+- The FCL's input module reads `events.txt` from the working directory (the job's output directory). Every
   event of the file is simulated (`--nevents` to cap it).
 - Off the experiment's network the experiment's conditions web service is not reachable: the simulation FCL then
   sets the values a service would look up at the start of a run (for this chain, the detector's gain setting).
@@ -109,10 +111,10 @@ python -m bdnmc_nova.jobspec submit --stages sim --handle <sim> --endpoint jobsu
   `worker_setup` has already run it.
 - The simulation stage dumps the art file's generator primaries to `primaries.csv`
   (`bdnmc_nova/data/dump_primaries.py`, in the NOvASoft environment; `--no-dump` to skip), and
-  `jobs/check_textfilegen.py` compares them with the TextFileGen input, outside that environment:
+  `jobs/check_hepevt.py` compares them with the HEPEVT input, outside that environment:
 
 ```bash
-python jobs/check_textfilegen.py results/<sim>/out/events.txt results/<sim>/out/primaries.csv --log results/<sim>/out/sim.log
+python jobs/check_hepevt.py results/<sim>/out/events.txt results/<sim>/out/primaries.csv --log results/<sim>/out/sim.log
 ```
 
 The configuration file is described in `bdnmc_nova/config.py`. Precision: float32 by default (the port's default),
@@ -120,26 +122,26 @@ The configuration file is described in `bdnmc_nova/config.py`. Precision: float3
 
 ## Status
 
-- **First version (2026-10-31):** frame, TextFileGen writer, generation CLI and tests (laptop CPU).
+- **First version (2026-10-31):** frame, HEPEVT writer, generation CLI and tests (laptop CPU).
 - **Run end to end (2026-11-11)** on one Slurm cluster through hep-endpoints `slurm_ssh`, as two jobs chained with
-  `--after` (Slurm `afterok`); the TextFileGen file stayed on the cluster's disk.
+  `--after` (Slurm `afterok`); the HEPEVT file stayed on the cluster's disk.
   - Generation: one NVIDIA V100 with 4 CPU cores, the BdNMC JAX image (fork `0dfc3e3`), float32. The generic 120 GeV
     BMPT pi0 card at m_chi = 5 MeV, with the detector placement and frame from the private configuration: 2^24
     trials in 11.9 s, 39191 events (39246 DM scatters).
   - Simulation: one CPU core, 16 GB, on a node without `/cvmfs`. cvmfsexec mounted the repositories; the Fermilab SL7
     worker image and the NOvASoft development release came from CVMFS (`apptainer --userns`), with a 1.3 GB node-local
-    cache. It started 80 s after generation ended and simulated the first 1000 events (TextFileGen, Geant4, photon
+    cache. It started 80 s after generation ended and simulated the first 1000 events (event input, Geant4, photon
     transport, readout) in 20 min 10 s. Geant4 took 1.08 s per event on average (median 0.66 s). The art file is
     55 MB.
-  - Checked with `jobs/check_textfilegen.py`: 1000 art events with 2002 primaries (electrons and recoil DM), all
-    equal to the TextFileGen input. Vertex, time, momentum, energy, mass, status, PDG and mother are identical, with
+  - Checked with `jobs/check_hepevt.py`: 1000 art events with 2002 primaries (electrons and recoil DM), all
+    equal to the HEPEVT input. Vertex, time, momentum, energy, mass, status, PDG and mother are identical, with
     0 relative difference. TrigReport 1000/1000.
   - Found: Off the experiment's network, the ideal-MC run number does not stop the simulation from asking the
     conditions web service for the detector gain, so the FCL sets the gain.
 - **Tested offline only:** the `jobsub` endpoint path (simulation alone, events embedded) and the single-job mode
   (`--stages gen,sim`, both stages on the GPU node). A simulation-only grid job submitted through `jobsub`
   received its job id and was cancelled before it ran.
-- **Next:** a comparison with the existing NOvA chain's TextFileGen files for the same card; g4numi meson lists
+- **Next:** a comparison with the existing NOvA chain's HEPEVT files for the same card; g4numi meson lists
   instead of BMPT; the in-process mode.
 
 ## Tests

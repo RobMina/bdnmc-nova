@@ -1,8 +1,8 @@
 """The generator's primaries in a NOvASoft art file, as CSV: one row per MCParticle of each simb::MCTruth.
 
 Runs in the NOvASoft environment (the release's PyROOT and art dictionaries; reads the Events tree directly), e.g. at the end of stage 2 of
-data/two_stage.sh (DUMP_PRIMARIES). The CSV is then compared with the TextFileGen input outside that environment
-(jobs/check_textfilegen.py).
+data/two_stage.sh (DUMP_PRIMARIES). The CSV is then compared with the HEPEVT input outside that environment
+(jobs/check_hepevt.py).
 
     python dump_primaries.py sim.root --out primaries.csv [--tag generator]
 

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "bdnmc-nova"
 version = "0.0.1"
-description = "BdNMC light-dark-matter event generation for the NOvA Near Detector: detector frame, TextFileGen input, container and job recipes"
+description = "BdNMC light-dark-matter event generation for the NOvA Near Detector: detector frame, HEPEVT input, container and job recipes"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 # bdnmc-jax: the JAX port in RobMina/BdNMC (branch gpu-port, subdirectory gpu)
