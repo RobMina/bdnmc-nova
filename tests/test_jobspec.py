@@ -139,6 +139,17 @@ def test_stage_requirements():
         spec(stages="sim,gen")
 
 
+def test_old_import_path_is_a_deprecated_alias():
+    import importlib
+    import sys
+    from bdnmc_nova import hepevt
+    sys.modules.pop("bdnmc_nova.textfilegen", None)
+    with pytest.warns(DeprecationWarning, match="bdnmc_nova.hepevt"):
+        old = importlib.import_module("bdnmc_nova.textfilegen")
+    assert (old.write, old.head, old.DM_PDG, old.DM_STATUS, old.LINKS) == \
+        (hepevt.write, hepevt.head, hepevt.DM_PDG, hepevt.DM_STATUS, hepevt.LINKS)
+
+
 def test_head_keeps_the_first_events():
     from bdnmc_nova.hepevt import head
     assert head(EVENTS, -1) == EVENTS
